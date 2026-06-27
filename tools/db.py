@@ -81,5 +81,27 @@ def get_targets() -> list[str]:
     return [r["domain"] for r in rows]
 
 
+def query_findings(domain: str, tool_name: str = "") -> dict:
+    """Tool-callable wrapper: returns the most recent result per tool for a domain."""
+    rows = get_findings(domain, tool_name or None)
+    if not rows:
+        return {"success": False, "error": f"No findings for {domain!r} in the database"}
+
+    # Keep only the most recent result per tool to avoid token bloat
+    seen = {}
+    for row in rows:
+        if row["tool"] not in seen:
+            seen[row["tool"]] = row
+
+    return {
+        "success": True,
+        "data": {
+            "domain": domain,
+            "tools_run": list(seen.keys()),
+            "findings": list(seen.values()),
+        },
+    }
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()

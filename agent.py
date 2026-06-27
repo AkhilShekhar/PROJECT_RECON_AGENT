@@ -18,7 +18,7 @@ from tools.wayback_urls import wayback_urls
 from tools.shodan_lookup import shodan_lookup
 from tools.asn_lookup import asn_lookup
 from tools.probe_alive import probe_alive
-from tools.db import init_db, save_finding, get_targets
+from tools.db import init_db, save_finding, get_targets, query_findings
 
 load_dotenv()
 
@@ -138,6 +138,21 @@ TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "query_findings",
+            "description": "Query the local database for past recon findings on a domain. Use this before running tools to check if we already have results.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "domain": {"type": "string", "description": "The domain to look up in the database, e.g. cloudways.com"},
+                    "tool_name": {"type": "string", "description": "Optional: filter by a specific tool name, e.g. crt_search. Leave empty to get all findings."},
+                },
+                "required": ["domain"],
+            },
+        },
+    },
 ]
 
 TOOL_MAP = {
@@ -149,6 +164,7 @@ TOOL_MAP = {
     "shodan_lookup": shodan_lookup,
     "asn_lookup": asn_lookup,
     "probe_alive": probe_alive,
+    "query_findings": query_findings,
 }
 
 SYSTEM_PROMPT = """You are a recon assistant for authorized penetration testing.
