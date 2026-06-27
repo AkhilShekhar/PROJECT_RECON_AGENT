@@ -7,3 +7,4 @@ venv/
 *.egg-info/
 .idea/
 .vscode/
+conversation_history.json

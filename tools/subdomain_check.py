@@ -1,3 +1,4 @@
+"""Concurrent subdomain discovery via DNS resolution."""
 import dns.resolver
 from concurrent.futures import ThreadPoolExecutor, as_completed
 

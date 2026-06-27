@@ -1,4 +1,6 @@
+"""HTTP response header fingerprinting."""
 import requests
+from tools.config import HTTP_HEADERS
 
 FINGERPRINT_HEADERS = [
     "Server",
@@ -19,16 +21,17 @@ COOKIE_SIGNATURES = {
 
 
 def http_fingerprint(target: str) -> dict:
+    """Fetch HTTP headers from target and identify server technology."""
     if not target.startswith("https"):
         target = "https://" + target
 
     try:
-        response = requests.get(target, timeout=10, allow_redirects=True)
+        response = requests.get(target, headers=HTTP_HEADERS, timeout=10, allow_redirects=True)
     except requests.exceptions.ConnectionError:
         return {"success": False, "error": "Could not connect to target"}
     except requests.exceptions.Timeout:
         return {"success": False, "error": "Request timed out"}
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
         return {"success": False, "error": str(e)}
 
     headers = dict(response.headers)

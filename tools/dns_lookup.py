@@ -1,3 +1,4 @@
+"""DNS record enumeration using dnspython."""
 import dns.resolver
 
 
