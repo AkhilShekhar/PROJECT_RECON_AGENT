@@ -18,6 +18,7 @@ from tools.wayback_urls import wayback_urls
 from tools.shodan_lookup import shodan_lookup
 from tools.asn_lookup import asn_lookup
 from tools.probe_alive import probe_alive
+from tools.db import init_db, save_finding, get_targets
 
 load_dotenv()
 
@@ -231,6 +232,10 @@ def run_agent(user_input: str):
             func = TOOL_MAP[name]
             result = func(**args)
 
+            domain = args.get("target") or args.get("ip") or args.get("subdomains", "").split(",")[0].strip()
+            if domain:
+                save_finding(domain, name, result)
+
             conversation.append({
                 "role": "tool",
                 "tool_call_id": tool_call.id,
@@ -239,7 +244,12 @@ def run_agent(user_input: str):
 
 
 if __name__ == "__main__":
-    print("Recon Agent — type a target or task. Ctrl+C to exit.\n")
+    init_db()
+    print("Recon Agent — type a target or task. Ctrl+C to exit.")
+    known = get_targets()
+    if known:
+        print(f"Known targets in DB: {', '.join(known)}")
+    print()
     while True:
         try:
             user_input = input("You: ").strip()

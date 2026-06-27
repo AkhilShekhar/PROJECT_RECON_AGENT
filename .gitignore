@@ -8,3 +8,4 @@ venv/
 .idea/
 .vscode/
 conversation_history.json
+recon.db
