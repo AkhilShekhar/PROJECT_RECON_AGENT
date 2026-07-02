@@ -100,7 +100,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "shodan_lookup",
-            "description": "Search Shodan for hosts, open ports, and services associated with a domain or IP.",
+            "description": "Search Shodan using shodan API for origin IP, hosts, open ports, and services associated with a domain or IP.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -168,9 +168,15 @@ TOOL_MAP = {
 }
 
 SYSTEM_PROMPT = """You are a recon assistant for authorized penetration testing.
-When given a target, use the available tools to gather information.
-Only run tools against targets the user has confirmed are authorized.
-Summarize findings clearly and highlight anything that looks interesting."""
+
+Workflow rules:
+1. Always call query_findings first to check if we already have data for a target before running tools.
+2. For subdomain enumeration, always use the base domain (e.g. cloudways.com not api.cloudways.com).
+3. Run tools in logical order: DNS → HTTP fingerprint → subdomain enum → probe alive → Shodan → ASN.
+4. If a tool fails (success: false), note the error and continue with the remaining tools.
+5. After all tools complete, summarize findings concisely: IPs, alive subdomains, open ports, and anything unusual.
+
+Only run tools against targets the user has confirmed are authorized."""
 
 HISTORY_FILE = "conversation_history.json"
 MAX_HISTORY = 20  # max messages to keep (excluding system prompt)
@@ -197,14 +203,16 @@ def _message_to_dict(msg) -> dict:
 
 
 def load_conversation() -> list:
+    """Load conversation history from disk, or start fresh."""
     if os.path.exists(HISTORY_FILE):
-        with open(HISTORY_FILE) as f:
+        with open(HISTORY_FILE, encoding="utf-8") as f:
             return json.load(f)
     return [{"role": "system", "content": SYSTEM_PROMPT}]
 
 
 def save_conversation() -> None:
-    with open(HISTORY_FILE, "w") as f:
+    """Persist current conversation history to disk."""
+    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
         json.dump([_message_to_dict(m) for m in conversation], f, indent=2)
 
 
@@ -215,6 +223,24 @@ def _trim_conversation() -> None:
     """Drop oldest messages when history exceeds MAX_HISTORY, keeping system prompt."""
     if len(conversation) > MAX_HISTORY + 1:
         del conversation[1 : len(conversation) - MAX_HISTORY]
+
+
+def _compress_conversation() -> None:
+    """After a turn, strip raw tool call/result messages — keep only text turns.
+
+    The assistant summary already contains the synthesised findings, so the
+    raw JSON tool results are dead weight that bloat future API calls.
+    """
+    compressed = [
+        msg for msg in conversation
+        if not (
+            (isinstance(msg, dict) and msg.get("role") == "tool")
+            or (isinstance(msg, dict) and msg.get("role") == "assistant" and msg.get("tool_calls"))
+            or (not isinstance(msg, dict) and getattr(msg, "tool_calls", None))
+        )
+    ]
+    conversation.clear()
+    conversation.extend(compressed)
 
 
 def run_agent(user_input: str):
@@ -234,6 +260,7 @@ def run_agent(user_input: str):
         if not message.tool_calls:
             print(f"\nAgent: {message.content}\n")
             conversation.append({"role": "assistant", "content": message.content})
+            _compress_conversation()
             save_conversation()
             break
 

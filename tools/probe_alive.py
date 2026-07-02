@@ -21,9 +21,9 @@ def _probe(subdomain: str) -> dict | None:
                 "server": response.headers.get("Server", ""),
                 "title": _extract_title(response.text),
             }
-        except requests.exceptions.SSLError:
-            continue
-        except Exception:
+        except (requests.exceptions.SSLError,
+                requests.exceptions.ConnectionError,
+                requests.exceptions.Timeout):
             continue
     return None
 
